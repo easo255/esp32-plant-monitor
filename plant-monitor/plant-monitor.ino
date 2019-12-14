@@ -1,17 +1,21 @@
+
 #include "WiFi.h"
 #include <TFT_eSPI.h>
-#include "xbm.h"
+#include "secrets.h"
 #include <Button2.h>
+#include <HTTPClient.h>
 
 #define BUTTON_2        0
 #define BUTTON_1        35
 int statusShown = false;
 
-const char *SSID = "";
-const char *WiFiPassword = "";
+const char *SSID = SECRET_SSID;
+const char *WiFiPassword = SECRET_PASS;
 TFT_eSPI tft = TFT_eSPI(135, 240); 
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
+int moisture = 0;
+boolean wifi = false;
 
 
 
@@ -33,8 +37,9 @@ void button_init()
 
 
 void setup() {
-  tft.fillScreen(TFT_BLACK);
+  ConnectToWiFi();
   button_init();
+  tft.fillScreen(TFT_BLACK);
   Serial.begin(115200);
   tft.init();
   showHomeScreen();
@@ -57,7 +62,8 @@ void ConnectToWiFi(){
  
   WiFi.mode(WIFI_STA);
   WiFi.begin(SSID, WiFiPassword);
-  Serial.print("Connecting to "); Serial.println(SSID);
+  Serial.print("Connecting to "); 
+  Serial.println(SSID);
  
   uint8_t i = 0;
   while (WiFi.status() != WL_CONNECTED)
@@ -73,6 +79,7 @@ void ConnectToWiFi(){
  
   Serial.print(F("Connected. My IP address is: "));
   Serial.println(WiFi.localIP());
+  wifi = true;
 }
 
 
@@ -88,7 +95,23 @@ void showStatus(){
 
   tft.setTextSize(10);
   tft.setRotation(1);
-  tft.drawString(":)",  tft.width() / 2, tft.height() / 2 );
+  moisture = analogRead(37);
+  Serial.println(moisture);
+  if(moisture > 3000){
+    tft.drawString(":(",  tft.width() / 2, tft.height() / 2 );
+    tft.setTextSize(1);
+    tft.setRotation(0);
+    tft.drawString("Fuktighet: " + String(moisture),  70,70 );
+
+  }else{
+    tft.drawString(":)",  tft.width() / 2, tft.height() / 2 );
+    tft.setTextSize(1);
+    tft.setRotation(0);
+    tft.drawString("Fuktighet: " + String(moisture),  70,70 );
+  }
+
+  sendToFunction(moisture);
+
 }
 
 void showHomeScreen(){
@@ -98,5 +121,25 @@ void showHomeScreen(){
   tft.setRotation(0);
   tft.drawString("Press right button for status",0,0);
   tft.drawString("status",0,10);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("wifi: " + String(wifi),70,120);
 
+  
+}
+
+void sendToFunction(int value){
+   if(WiFi.status()== WL_CONNECTED){
+    HTTPClient http;   
+ 
+    http.begin(URL+String(value));  //Specify destination for HTTP request
+    http.addHeader("Content-Type", "text/plain; charset=utf-8");             //Specify content-type header
+ 
+    int httpResponseCode = http.POST(String(value));   //Send the actual POST request
+ 
+    Serial.println(httpResponseCode);   //Print return code
+
+    
+
+
+}
 }
